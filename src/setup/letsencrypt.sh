@@ -109,15 +109,20 @@ if [[ -f "$CFG_FILE" ]]
 then
         EMAIL=$(jq -r ".EMAIL" $CFG_FILE)
         DOMAIN=$(jq -r ".DOMAIN" $CFG_FILE)
+        FQDN=$(jq -r ".FQDN" $CFG_FILE)
         VIP=$(dig +short myip.opendns.com @resolver1.opendns.com | head -1)
+        PIP=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1 -d'/')
         INSTALL=$(jq -r ".INSTALL" $CFG_FILE)
         SETUP=$(jq -r ".SETUP" $CFG_FILE)
         SETUP_OPENSSL=$(jq -r ".SETUP_OPENSSL" $CFG_FILE)
         SETUP_LETSENCRYPT=$(jq -r ".SETUP_LETSENCRYPT" $CFG_FILE)
 
+
         echo "Get SSL Certificate for " $DOMAIN
         echo " e-Mail " $EMAIL
+        echo " Private IP " $PIP
         echo " Public IP " $VIP
+        echo " Public FDQN " $FQDN
         echo " Action Install: " $INSTALL
         echo " Action Setup: " $SETUP
         echo " Action OpenSSL: " $SETUP_OPENSSL
@@ -142,11 +147,17 @@ fi
 
 if [ $SETUP_LETSENCRYPT == 'true' ]
 then
-sudo chmod g+s /var/lib/letsencrypt
+
+if [ ! -d "/var/lib/letsencrypt/.well-known" ]
+then
 sudo mkdir -p /var/lib/letsencrypt/.well-known
 sudo chgrp apache /var/lib/letsencrypt
 sudo chmod g+s /var/lib/letsencrypt
+fi
 
+if [ ! -f "/etc/httpd/conf.d/letsencrypt.conf" ]
+then
+sudo touch /etc/httpd/conf.d/letsencrypt.conf
 echo 'Alias /.well-known/acme-challenge/ "/var/lib/letsencrypt/.well-known/acme-challenge/"' | sudo tee /etc/httpd/conf.d/letsencrypt.conf
 echo '<Directory "/var/lib/letsencrypt/">' | sudo tee -a /etc/httpd/conf.d/letsencrypt.conf
 echo '    AllowOverride None' | sudo tee -a /etc/httpd/conf.d/letsencrypt.conf
@@ -154,23 +165,63 @@ echo '    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec' | sudo
 echo '    Require method GET POST OPTIONS' | sudo tee -a /etc/httpd/conf.d/letsencrypt.conf
 echo '</Directory>' | sudo tee -a /etc/httpd/conf.d/letsencrypt.conf
 sudo ls -l /etc/httpd/conf.d/letsencrypt.conf
+fi
 
+if [ ! -f "/etc/httpd/conf.d/ssl-params.conf" ]
+then
 sudo touch /etc/httpd/conf.d/ssl-params.conf
 echo 'SSLCipherSuite EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH' | sudo tee /etc/httpd/conf.d/ssl-params.conf
-echo 'SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1 | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
+echo 'SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'SSLHonorCipherOrder On' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
-echo 'echo 'Header always set X-Frame-Options SAMEORIGIN' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
+echo 'Header always set X-Frame-Options SAMEORIGIN' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'Header always set X-Content-Type-Options nosniff' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
-echo '# Requires Apache >= 2.4' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'SSLCompression off' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'SSLUseStapling on' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'SSLStaplingCache "shmcb:logs/stapling-cache(150000)"' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
-echo '# Requires Apache >= 2.4.11' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
 echo 'SSLSessionTickets Off' | sudo tee -a /etc/httpd/conf.d/ssl-params.conf
-
 sudo ls -l /etc/httpd/conf.d/ssl-params.conf
+fi
+
 sudo systemctl reload httpd
+# sudo certbot certonly --agree-tos --email $EMAIL --webroot -w /var/lib/letsencrypt/ -d $DOMAIN -d $FQDN
+sudo certbot certificates
+
+if [ ! -d "/var/www/$DOMAIN" ]
+then
+sudo mkdir -p /var/www/$DOMAIN
+sudo chgrp apache /var/www/$DOMAIN
+sudo chmod g+s /var/www/$DOMAIN
+sudo cp -R ./web/* /var/www/$DOMAIN 
+sudo sed -i "s/ABCD/$FQDN/g" /var/www/$DOMAIN/index.html
+fi
+
+if [ ! -f "/etc/httpd/conf.d/$DOMAIN.conf" ]
+then
+sudo touch /etc/httpd/conf.d/$DOMAIN.conf
+echo "<VirtualHost *:80>" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  ServerName $DOMAIN" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  ServerAlias $FQDN" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo " " | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  Redirect permanent / https://$FQDN/" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "</VirtualHost>" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo " " | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "<VirtualHost *:443>" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  ServerName $DOMAIN" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  ServerAlias $FQDN" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  Protocols h2 http/1.1" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  DocumentRoot /var/www/$DOMAIN/" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  ErrorLog /var/log/httpd/$DOMAIN-error.log" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  CustomLog /var/log/httpd/$DOMAIN-access.log combined" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  SSLEngine On" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  SSLCertificateFile /etc/letsencrypt/live/$DOMAIN/fullchain.pem" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  SSLCertificateKeyFile /etc/letsencrypt/live/$DOMAIN/privkey.pem" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "  SSLCertificateChainFile /etc/letsencrypt/live/$DOMAIN/chain.pem" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+echo "</VirtualHost>" | sudo tee -a /etc/httpd/conf.d/$DOMAIN.conf
+
+
+sudo systemctl reload httpd
+fi
 
 # sudo certbot certonly --manual --preferred-challenges=dns --email $EMAIL --server https://acme-v02.api.letsencrypt.org/directory --agree-tos -d $DOMAIN
 fi
