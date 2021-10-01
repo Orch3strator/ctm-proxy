@@ -130,7 +130,7 @@ then
 
 fi
 
-if [ $INSTALL == 'true' ]
+if [ $INSTALL == "true" ]
 then
 
 sudo dnf update -y
@@ -139,13 +139,13 @@ sudo certbot --version
 sudo certbot certificates
 fi
 
-if [ $SETUP_OPENSSL == 'true' ]
+if [ $SETUP_OPENSSL == "true" ]
 then
 sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 4096
 fi
 
 
-if [ $SETUP_LETSENCRYPT == 'true' ]
+if [ $SETUP_LETSENCRYPT == "true" ]
 then
 
 if [ ! -d "/var/lib/letsencrypt/.well-known" ]
