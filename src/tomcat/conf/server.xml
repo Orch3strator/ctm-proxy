@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="8007" shutdown="SHUTDOWN">
+	<Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+	<Listener SSLEngine="on" className="org.apache.catalina.core.AprLifecycleListener" />
+	<Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener" />
+	<Listener className="org.apache.catalina.mbeans.GlobalResourcesLifecycleListener" />
+	<Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+	<GlobalNamingResources>
+		<Resource 
+            auth="Container" 
+            description="User database that can be updated and saved" 
+            factory="org.apache.catalina.users.MemoryUserDatabaseFactory" 
+            name="UserDatabase" 
+            pathname="conf/tomcat-users.xml" 
+            type="org.apache.catalina.UserDatabase" />
+	</GlobalNamingResources>
+	<Service name="Catalina">
+		<Connector 
+            Ciphers="TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384,TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384,TLS_DHE_DSS_WITH_AES_256_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDH_RSA_WITH_AES_256_CBC_SHA,TLS_DHE_DSS_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256,TLS_DHE_DSS_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,TLS_DHE_DSS_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,TLS_ECDH_ECDSA_WITH_RC4_128_SHA,TLS_ECDH_RSA_WITH_RC4_128_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384,TLS_DHE_DSS_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_DSS_WITH_AES_128_GCM_SHA256,TLS_EMPTY_RENEGOTIATION_INFO_SCSVF" 
+            SSLEnabled="true" 
+            clientAuth="false" 
+            compressableMimeType="text/html,text/xml,text/plain,text/css,text/javascript,application/javascript" 
+            compression="on" 
+            compressionMinSize="2048" 
+            connectionTimeout="320000" 
+            keystoreFile="KEYSTORE_FILE"
+            keystorePass="KEYSTORE_PASSWORD"
+            keystoreType="KEYSTORE_TYPE" 
+            maxHttpHeaderSize="65536" 
+            maxIdleTime="320000" 
+            maxThreads="400" 
+            minSpareThreads="20" 
+            noCompressionUserAgents="gozilla,traviata" 
+            port="8443" 
+            protocol="com.bmc.ctmem.tomcat.Http" 
+            scheme="https" 
+            secure="true" 
+            server="Web Server" 
+            sslEnabledProtocols="TLSv1.2" 
+            sslProtocol="TLSv1.2" />
+		<Connector 
+            connectionTimeout="320000" 
+            maxIdleTime="350" 
+            port="8080" 
+            protocol="HTTP/1.1" 
+            redirectPort="8443" />
+		<Engine defaultHost="localhost" name="Catalina">
+			<Realm className="org.apache.catalina.realm.LockOutRealm">
+				<Realm className="org.apache.catalina.realm.UserDatabaseRealm" resourceName="UserDatabase" />
+			</Realm>
+			<Host 
+                appBase="webapps" 
+                autoDeploy="true" 
+                backgroundProcessorDelay="10" 
+                deployOnStartup="false" 
+                name="localhost" 
+                startStopThreads="10" 
+                unpackWARs="true">
+				<Context path="/emThriftAPI" />
+				<Valve className="com.bmc.ctmem.CustomAccessLog" pattern="%h %l %u %v %t &quot;%r&quot; %s %S %b %U %D" />
+				<Valve className="org.apache.catalina.valves.ErrorReportValve" showReport="false" showServerInfo="false" />
+			</Host>
+		</Engine>
+	</Service>
+</Server>
